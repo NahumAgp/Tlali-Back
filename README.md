@@ -14,6 +14,18 @@ Backend REST de Tlali para recibir lecturas de sensores desde un ESP32.
 
 ## Ejecutar
 
+El backend necesita la base local de Supabase escuchando en `localhost:54322`.
+
+Desde el repo general puedes levantar Supabase local con:
+
+```powershell
+cd ..
+npm install
+npx supabase start
+```
+
+Luego inicia Spring Boot:
+
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
