@@ -6,7 +6,7 @@ import java.time.Instant;
 public record SensorReadingResponse(
 		Long id,
 		String deviceId,
-		String greenhouseId,
+		String siteId,
 		BigDecimal temperatureCelsius,
 		BigDecimal humidityPercent,
 		BigDecimal soilMoisturePercent,
@@ -19,7 +19,7 @@ public record SensorReadingResponse(
 		return new SensorReadingResponse(
 				reading.getId(),
 				reading.getDeviceId(),
-				reading.getGreenhouseId(),
+				reading.getSiteId(),
 				reading.getTemperatureCelsius(),
 				reading.getHumidityPercent(),
 				reading.getSoilMoisturePercent(),

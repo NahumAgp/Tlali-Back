@@ -15,7 +15,7 @@ public record CreateSensorReadingRequest(
 		String deviceId,
 
 		@Size(max = 80)
-		String greenhouseId,
+		String siteId,
 
 		@NotNull
 		@DecimalMin("-40.0")

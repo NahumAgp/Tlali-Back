@@ -1,6 +1,6 @@
-# Tlali-Back
+# Tlali Tlapixqui Back
 
-Backend REST de Tlali para recibir lecturas de sensores desde un ESP32.
+Backend REST de Tlali Tlapixqui para recibir lecturas de sensores desde un ESP32.
 
 ## Stack
 
@@ -100,8 +100,8 @@ Ejemplo de lectura:
 
 ```json
 {
-  "deviceId": "esp32-greenhouse-01",
-  "greenhouseId": "greenhouse-main",
+  "deviceId": "esp32-tlali-sensor-01",
+  "siteId": "tlali-tlapixqui-main",
   "temperatureCelsius": 24.8,
   "humidityPercent": 67.5,
   "soilMoisturePercent": 41.2,

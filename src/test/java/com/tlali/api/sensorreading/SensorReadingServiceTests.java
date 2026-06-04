@@ -27,8 +27,8 @@ class SensorReadingServiceTests {
 	@Test
 	void createsReadingAndReturnsLatest() {
 		CreateSensorReadingRequest request = new CreateSensorReadingRequest(
-				"esp32-greenhouse-01",
-				"greenhouse-main",
+				"esp32-tlali-sensor-01",
+				"tlali-tlapixqui-main",
 				BigDecimal.valueOf(25.4),
 				BigDecimal.valueOf(68.2),
 				BigDecimal.valueOf(42.0),
@@ -40,7 +40,7 @@ class SensorReadingServiceTests {
 		SensorReadingResponse created = service.create(request);
 
 		assertThat(created.id()).isNotNull();
-		assertThat(created.deviceId()).isEqualTo("esp32-greenhouse-01");
+		assertThat(created.deviceId()).isEqualTo("esp32-tlali-sensor-01");
 		assertThat(service.findLatest(10))
 				.singleElement()
 				.extracting(SensorReadingResponse::id)

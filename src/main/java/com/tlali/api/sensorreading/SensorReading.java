@@ -30,8 +30,8 @@ public class SensorReading {
 	@Column(name = "device_id", nullable = false, length = 80)
 	private String deviceId;
 
-	@Column(name = "greenhouse_id", length = 80)
-	private String greenhouseId;
+	@Column(name = "site_id", length = 80)
+	private String siteId;
 
 	@Column(name = "temperature_celsius", nullable = false, precision = 5, scale = 2)
 	private BigDecimal temperatureCelsius;
@@ -59,7 +59,7 @@ public class SensorReading {
 
 	private SensorReading(
 			String deviceId,
-			String greenhouseId,
+			String siteId,
 			BigDecimal temperatureCelsius,
 			BigDecimal humidityPercent,
 			BigDecimal soilMoisturePercent,
@@ -69,7 +69,7 @@ public class SensorReading {
 			Instant receivedAt
 	) {
 		this.deviceId = deviceId;
-		this.greenhouseId = greenhouseId;
+		this.siteId = siteId;
 		this.temperatureCelsius = temperatureCelsius;
 		this.humidityPercent = humidityPercent;
 		this.soilMoisturePercent = soilMoisturePercent;
@@ -84,7 +84,7 @@ public class SensorReading {
 
 		return new SensorReading(
 				request.deviceId(),
-				request.greenhouseId(),
+				request.siteId(),
 				request.temperatureCelsius(),
 				request.humidityPercent(),
 				request.soilMoisturePercent(),
@@ -103,8 +103,8 @@ public class SensorReading {
 		return deviceId;
 	}
 
-	public String getGreenhouseId() {
-		return greenhouseId;
+	public String getSiteId() {
+		return siteId;
 	}
 
 	public BigDecimal getTemperatureCelsius() {

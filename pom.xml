@@ -12,7 +12,7 @@
 	<artifactId>tlali-back</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>tlali-back</name>
-	<description>Backend REST para monitoreo de invernadero inteligente Tlali</description>
+	<description>Backend REST para monitoreo de sensores Tlali Tlapixqui</description>
 	<url/>
 	<licenses>
 		<license/>
