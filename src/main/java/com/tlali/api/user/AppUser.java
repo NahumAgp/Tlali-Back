@@ -69,6 +69,14 @@ public class AppUser {
 		return new AppUser(email, null, fullName, AppRole.USER, AuthProvider.GOOGLE);
 	}
 
+	public void syncLocalSuperAdmin(String passwordHash, String fullName) {
+		this.passwordHash = passwordHash;
+		this.fullName = fullName;
+		this.role = AppRole.SUPER_ADMIN;
+		this.provider = AuthProvider.LOCAL;
+		this.enabled = true;
+	}
+
 	public Long getId() {
 		return id;
 	}

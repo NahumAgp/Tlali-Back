@@ -32,15 +32,15 @@ public class AppUserService {
 
 	@Transactional
 	public void ensureSuperAdmin(String email, String rawPassword, String fullName) {
-		if (repository.existsByEmailIgnoreCase(email)) {
-			return;
-		}
-
-		repository.save(AppUser.localSuperAdmin(
-				email,
-				passwordEncoder.encode(rawPassword),
-				fullName
-		));
+		String passwordHash = passwordEncoder.encode(rawPassword);
+		repository.findByEmailIgnoreCase(email)
+				.ifPresentOrElse(
+						existingUser -> {
+							existingUser.syncLocalSuperAdmin(passwordHash, fullName);
+							repository.save(existingUser);
+						},
+						() -> repository.save(AppUser.localSuperAdmin(email, passwordHash, fullName))
+				);
 	}
 
 	@Component
