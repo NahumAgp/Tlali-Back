@@ -58,6 +58,7 @@ TLALI_SUPERADMIN_EMAIL=admin@example.com
 TLALI_SUPERADMIN_PASSWORD=change-me
 TLALI_SUPERADMIN_NAME=Super Admin
 TLALI_JWT_SECRET=change-this-secret-in-production-at-least-32-chars
+TLALI_DEVICE_API_KEY=tlali-local-device-key
 ```
 
 Login local:
@@ -77,6 +78,12 @@ El token se envia como:
 
 ```text
 Authorization: Bearer <token>
+```
+
+Los dispositivos ESP32 pueden enviar lecturas sin login usando:
+
+```text
+X-Tlali-Device-Key: tlali-local-device-key
 ```
 
 ## Google OAuth
@@ -108,6 +115,25 @@ Ejemplo de lectura:
   "lightLux": 1180,
   "batteryVoltage": 3.7
 }
+```
+
+Ejemplo simulando un ESP32:
+
+```powershell
+Invoke-RestMethod `
+  -Uri http://localhost:8080/api/v1/sensor-readings `
+  -Method POST `
+  -Headers @{ "X-Tlali-Device-Key" = "tlali-local-device-key" } `
+  -ContentType "application/json" `
+  -Body '{
+    "deviceId": "esp32-tlali-sensor-01",
+    "siteId": "tlali-tlapixqui-main",
+    "temperatureCelsius": 25.4,
+    "humidityPercent": 61.2,
+    "soilMoisturePercent": 42.8,
+    "lightLux": 1800,
+    "batteryVoltage": 3.74
+  }'
 ```
 
 ## Pruebas

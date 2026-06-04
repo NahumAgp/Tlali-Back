@@ -34,3 +34,4 @@ build/
 
 ### Local run logs ###
 backend-run.log
+backend-run.err.log

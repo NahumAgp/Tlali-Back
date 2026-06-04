@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -20,13 +21,16 @@ public class SecurityConfig {
 
 	private final OAuth2LoginSuccessHandler oauth2LoginSuccessHandler;
 	private final ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository;
+	private final DeviceApiKeyAuthenticationFilter deviceApiKeyAuthenticationFilter;
 
 	public SecurityConfig(
 			OAuth2LoginSuccessHandler oauth2LoginSuccessHandler,
-			ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository
+			ObjectProvider<ClientRegistrationRepository> clientRegistrationRepository,
+			DeviceApiKeyAuthenticationFilter deviceApiKeyAuthenticationFilter
 	) {
 		this.oauth2LoginSuccessHandler = oauth2LoginSuccessHandler;
 		this.clientRegistrationRepository = clientRegistrationRepository;
+		this.deviceApiKeyAuthenticationFilter = deviceApiKeyAuthenticationFilter;
 	}
 
 	@Bean
@@ -43,6 +47,7 @@ public class SecurityConfig {
 						).permitAll()
 						.anyRequest().authenticated()
 				)
+				.addFilterBefore(deviceApiKeyAuthenticationFilter, BearerTokenAuthenticationFilter.class)
 				.oauth2ResourceServer(resourceServer -> resourceServer.jwt(jwt -> {
 				}));
 
