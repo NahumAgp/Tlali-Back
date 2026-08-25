@@ -1,63 +1,35 @@
 package com.tlali.api.sensorreading;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Index;
-import jakarta.persistence.Table;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Entity
-@Table(
-		name = "sensor_readings",
-		indexes = {
-				@Index(
-						name = "idx_sensor_readings_device_received_at",
-						columnList = "device_id, received_at"
-				)
-		}
-)
 public class SensorReading {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "device_id", nullable = false, length = 80)
 	private String deviceId;
 
-	@Column(name = "site_id", length = 80)
 	private String siteId;
 
-	@Column(name = "temperature_celsius", nullable = false, precision = 5, scale = 2)
 	private BigDecimal temperatureCelsius;
 
-	@Column(name = "humidity_percent", nullable = false, precision = 5, scale = 2)
 	private BigDecimal humidityPercent;
 
-	@Column(name = "soil_moisture_percent", precision = 5, scale = 2)
 	private BigDecimal soilMoisturePercent;
 
-	@Column(name = "light_lux", precision = 10, scale = 2)
 	private BigDecimal lightLux;
 
-	@Column(name = "battery_voltage", precision = 5, scale = 2)
 	private BigDecimal batteryVoltage;
 
-	@Column(name = "recorded_at", nullable = false)
 	private Instant recordedAt;
 
-	@Column(name = "received_at", nullable = false)
 	private Instant receivedAt;
 
-	protected SensorReading() {
+	public SensorReading() {
 	}
 
 	private SensorReading(
+			Long id,
 			String deviceId,
 			String siteId,
 			BigDecimal temperatureCelsius,
@@ -68,6 +40,7 @@ public class SensorReading {
 			Instant recordedAt,
 			Instant receivedAt
 	) {
+		this.id = id;
 		this.deviceId = deviceId;
 		this.siteId = siteId;
 		this.temperatureCelsius = temperatureCelsius;
@@ -79,10 +52,11 @@ public class SensorReading {
 		this.receivedAt = receivedAt;
 	}
 
-	public static SensorReading from(CreateSensorReadingRequest request, Instant receivedAt) {
+	public static SensorReading from(Long id, CreateSensorReadingRequest request, Instant receivedAt) {
 		Instant recordedAt = request.recordedAt() == null ? receivedAt : request.recordedAt();
 
 		return new SensorReading(
+				id,
 				request.deviceId(),
 				request.siteId(),
 				request.temperatureCelsius(),

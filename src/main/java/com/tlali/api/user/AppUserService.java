@@ -1,71 +1,72 @@
 package com.tlali.api.user;
 
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class AppUserService {
 
-	private final AppUserRepository repository;
+	private final Map<String, AppUser> usersByEmail = new ConcurrentHashMap<>();
+	private final AtomicLong ids = new AtomicLong(1);
 	private final PasswordEncoder passwordEncoder;
+	private final String superAdminEmail;
+	private final String superAdminPassword;
+	private final String superAdminName;
 
-	public AppUserService(AppUserRepository repository, PasswordEncoder passwordEncoder) {
-		this.repository = repository;
+	public AppUserService(
+			PasswordEncoder passwordEncoder,
+			@Value("${tlali.security.superadmin.email}") String superAdminEmail,
+			@Value("${tlali.security.superadmin.password}") String superAdminPassword,
+			@Value("${tlali.security.superadmin.name}") String superAdminName
+	) {
 		this.passwordEncoder = passwordEncoder;
+		this.superAdminEmail = superAdminEmail;
+		this.superAdminPassword = superAdminPassword;
+		this.superAdminName = superAdminName;
 	}
 
-	@Transactional(readOnly = true)
+	@PostConstruct
+	void bootstrapSuperAdmin() {
+		ensureSuperAdmin(superAdminEmail, superAdminPassword, superAdminName);
+	}
+
 	public AppUser findByEmail(String email) {
-		return repository.findByEmailIgnoreCase(email)
-				.orElseThrow(() -> new IllegalArgumentException("User not found"));
+		AppUser user = usersByEmail.get(normalizeEmail(email));
+		if (user == null) {
+			throw new IllegalArgumentException("User not found");
+		}
+		return user;
 	}
 
-	@Transactional
 	public AppUser createGoogleUserIfMissing(String email, String fullName) {
-		return repository.findByEmailIgnoreCase(email)
-				.orElseGet(() -> repository.save(AppUser.googleUser(email, fullName)));
+		return usersByEmail.computeIfAbsent(
+				normalizeEmail(email),
+				key -> AppUser.googleUser(ids.getAndIncrement(), email, fullName)
+		);
 	}
 
-	@Transactional
 	public void ensureSuperAdmin(String email, String rawPassword, String fullName) {
 		String passwordHash = passwordEncoder.encode(rawPassword);
-		repository.findByEmailIgnoreCase(email)
-				.ifPresentOrElse(
-						existingUser -> {
-							existingUser.syncLocalSuperAdmin(passwordHash, fullName);
-							repository.save(existingUser);
-						},
-						() -> repository.save(AppUser.localSuperAdmin(email, passwordHash, fullName))
-				);
+		usersByEmail.compute(
+				normalizeEmail(email),
+				(key, existingUser) -> {
+					if (existingUser == null) {
+						return AppUser.localSuperAdmin(ids.getAndIncrement(), email, passwordHash, fullName);
+					}
+					existingUser.syncLocalSuperAdmin(passwordHash, fullName);
+					return existingUser;
+				}
+		);
 	}
 
-	@Component
-	static class SuperAdminBootstrap implements CommandLineRunner {
-
-		private final AppUserService appUserService;
-		private final String email;
-		private final String password;
-		private final String fullName;
-
-		SuperAdminBootstrap(
-				AppUserService appUserService,
-				@Value("${tlali.security.superadmin.email}") String email,
-				@Value("${tlali.security.superadmin.password}") String password,
-				@Value("${tlali.security.superadmin.name}") String fullName
-		) {
-			this.appUserService = appUserService;
-			this.email = email;
-			this.password = password;
-			this.fullName = fullName;
-		}
-
-		@Override
-		public void run(String... args) {
-			appUserService.ensureSuperAdmin(email, password, fullName);
-		}
+	private String normalizeEmail(String email) {
+		return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
 	}
 }

@@ -8,23 +8,12 @@ Backend REST de Tlali Tlapixqui para recibir lecturas de sensores desde un ESP32
 - Spring Boot
 - Maven
 - Spring Web MVC
-- Spring Data JPA
-- PostgreSQL
 - Validation
+- Firebase Realtime Database para datos de monitoreo
 
 ## Ejecutar
 
-El backend necesita la base local de Supabase escuchando en `localhost:54322`.
-
-Desde el repo general puedes levantar Supabase local con:
-
-```powershell
-cd ..
-npm install
-npx supabase start
-```
-
-Luego inicia Spring Boot:
+Inicia Spring Boot:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
@@ -32,11 +21,33 @@ Luego inicia Spring Boot:
 
 La API queda disponible en `http://localhost:8080`.
 
+El backend ya no requiere Supabase/PostgreSQL. El monitoreo se consulta desde Firebase Realtime Database mediante:
+
+```properties
+TLALI_FIREBASE_DATABASE_URL=https://tlali-5edc4-default-rtdb.firebaseio.com
+```
+
+El login inicial se crea en memoria desde la configuración. Las lecturas enviadas a `/api/v1/sensor-readings` se conservan solo mientras el backend esté encendido; la fuente operativa principal es Firebase.
+
 ## Endpoints iniciales
+
+## Historial Firebase + MySQL
+
+Firebase queda como fuente de tiempo real para las cards del dashboard. El backend sincroniza periódicamente los nodos de Firebase hacia MySQL para conservar el historial permanente.
+
+La limpieza de Firebase queda apagada por defecto durante pruebas:
+
+```properties
+TLALI_FIREBASE_CLEANUP_ENABLED=false
+TLALI_FIREBASE_CLEANUP_RETENTION_DAYS=2
+```
+
+Cuando el sistema ya esté desplegado y se confirme que MySQL está recibiendo bien el historial, se podrá activar la limpieza para conservar en Firebase solo la ventana reciente.
 
 - `GET /api/v1/health`
 - `POST /api/v1/auth/login`
 - `GET /api/v1/auth/me`
+- `GET /api/v1/firebase/actual`
 - `POST /api/v1/sensor-readings`
 - `GET /api/v1/sensor-readings/latest?limit=10`
 

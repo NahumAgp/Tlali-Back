@@ -41,4 +41,9 @@ public class SensorReadingController {
 	) {
 		return service.findLatest(limit);
 	}
+
+	@GetMapping("/dashboard")
+	public DashboardSummaryResponse dashboard() {
+		return service.getDashboardSummary();
+	}
 }

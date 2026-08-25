@@ -1,7 +1,7 @@
 package com.tlali.api.security;
 
 import com.tlali.api.user.AppUser;
-import com.tlali.api.user.AppUserRepository;
+import com.tlali.api.user.AppUserService;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,16 +14,20 @@ import java.util.List;
 @Service
 public class TlaliUserDetailsService implements UserDetailsService {
 
-	private final AppUserRepository repository;
+	private final AppUserService appUserService;
 
-	public TlaliUserDetailsService(AppUserRepository repository) {
-		this.repository = repository;
+	public TlaliUserDetailsService(AppUserService appUserService) {
+		this.appUserService = appUserService;
 	}
 
 	@Override
 	public UserDetails loadUserByUsername(String username) {
-		AppUser appUser = repository.findByEmailIgnoreCase(username)
-				.orElseThrow(() -> new UsernameNotFoundException("User not found"));
+		AppUser appUser;
+		try {
+			appUser = appUserService.findByEmail(username);
+		} catch (IllegalArgumentException exception) {
+			throw new UsernameNotFoundException("User not found");
+		}
 
 		return new User(
 				appUser.getEmail(),

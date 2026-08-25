@@ -16,12 +16,9 @@ class SensorReadingServiceTests {
 	@Autowired
 	private SensorReadingService service;
 
-	@Autowired
-	private SensorReadingRepository repository;
-
 	@BeforeEach
 	void setUp() {
-		repository.deleteAll();
+		service.clearForTests();
 	}
 
 	@Test
@@ -45,5 +42,28 @@ class SensorReadingServiceTests {
 				.singleElement()
 				.extracting(SensorReadingResponse::id)
 				.isEqualTo(created.id());
+	}
+
+	@Test
+	void buildsDashboardSummaryFromRecentReadings() {
+		service.create(new CreateSensorReadingRequest(
+				"esp32-cultivo-01",
+				"sector-a1",
+				BigDecimal.valueOf(25.4),
+				BigDecimal.valueOf(68.2),
+				BigDecimal.valueOf(42.0),
+				BigDecimal.valueOf(43000),
+				BigDecimal.valueOf(4.1),
+				Instant.now()
+		));
+
+		DashboardSummaryResponse summary = service.getDashboardSummary();
+
+		assertThat(summary.activeNodes()).isEqualTo(1);
+		assertThat(summary.gatewayOnline()).isTrue();
+		assertThat(summary.averageBatteryPercent()).isEqualTo(90);
+		assertThat(summary.alerts()).isZero();
+		assertThat(summary.samples()).isEqualTo(1);
+		assertThat(summary.recentReadings()).hasSize(1);
 	}
 }
