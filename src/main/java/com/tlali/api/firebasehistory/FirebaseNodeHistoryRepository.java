@@ -15,5 +15,7 @@ public interface FirebaseNodeHistoryRepository extends JpaRepository<FirebaseNod
 
 	List<FirebaseNodeHistory> findTop2000ByTypeAndGatewayReceivedAtBetweenOrderByGatewayReceivedAtDesc(String type, Instant start, Instant end);
 
+	List<FirebaseNodeHistory> findTop10000ByTypeAndGatewayReceivedAtBetweenOrderByGatewayReceivedAtDesc(String type, Instant start, Instant end);
+
 	List<FirebaseNodeHistory> findByGatewayReceivedAtBefore(Instant cutoff);
 }
