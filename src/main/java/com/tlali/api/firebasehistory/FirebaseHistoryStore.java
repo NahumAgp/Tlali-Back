@@ -12,10 +12,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class FirebaseHistoryStore {
+	private static final long SAMPLE_INTERVAL_SECONDS = 30 * 60;
 
 	private final FirebaseNodeHistoryRepository repository;
 
@@ -50,23 +52,24 @@ public class FirebaseHistoryStore {
 		if (!candidates.isEmpty()) {
 			repository.findAllBySourceFingerprintIn(candidates.stream().map(Candidate::fingerprint).toList())
 					.forEach(row -> fingerprints.add(row.getSourceFingerprint()));
-			Instant start = candidates.stream().map(candidate -> candidate.response().gatewayReceivedAt())
+			Instant firstReading = candidates.stream().map(candidate -> candidate.response().gatewayReceivedAt())
 					.min(Instant::compareTo).orElseThrow();
-			Instant end = candidates.stream().map(candidate -> candidate.response().gatewayReceivedAt())
+			Instant lastReading = candidates.stream().map(candidate -> candidate.response().gatewayReceivedAt())
 					.max(Instant::compareTo).orElseThrow();
+			Instant start = bucketStart(firstReading);
+			Instant end = bucketStart(lastReading).plusSeconds(SAMPLE_INTERVAL_SECONDS).minusNanos(1);
 			Set<String> nodes = candidates.stream().map(candidate -> candidate.response().node())
 					.collect(java.util.stream.Collectors.toSet());
 			repository.findByNodeInAndGatewayReceivedAtBetween(nodes, start, end)
-					.forEach(row -> naturalKey(row.getNode(), row.getSequenceNumber(), row.getGatewayReceivedAt())
-							.ifPresent(naturalKeys::add));
+					.forEach(row -> naturalKeys.add(sampleKey(
+							row.getNode(), row.getType(), row.getGatewayReceivedAt())));
 		}
 
 		for (Candidate candidate : candidates) {
 			FirebaseHistoryNodeResponse response = candidate.response();
-			String naturalKey = naturalKey(response.node(), response.sequenceNumber(), response.gatewayReceivedAt())
-					.orElse(null);
+			String naturalKey = sampleKey(response.node(), response.type(), response.gatewayReceivedAt());
 			boolean exactDuplicate = fingerprints.contains(candidate.fingerprint())
-					|| (naturalKey != null && naturalKeys.contains(naturalKey));
+					|| naturalKeys.contains(naturalKey);
 			if (exactDuplicate) {
 				duplicates++;
 				continue;
@@ -85,9 +88,7 @@ public class FirebaseHistoryStore {
 					response.syncedAt()
 			));
 			fingerprints.add(candidate.fingerprint());
-			if (naturalKey != null) {
-				naturalKeys.add(naturalKey);
-			}
+			naturalKeys.add(naturalKey);
 		}
 
 		if (!pending.isEmpty()) {
@@ -97,11 +98,13 @@ public class FirebaseHistoryStore {
 		return new FirebaseHistoryStoreResult(entries.size(), pending.size(), duplicates, invalid, allVerified);
 	}
 
-	private java.util.Optional<String> naturalKey(String node, Long sequenceNumber, Instant gatewayReceivedAt) {
-		if (sequenceNumber == null || gatewayReceivedAt == null) {
-			return java.util.Optional.empty();
-		}
-		return java.util.Optional.of(node + "\u0000" + sequenceNumber + "\u0000" + gatewayReceivedAt);
+	private String sampleKey(String node, String type, Instant gatewayReceivedAt) {
+		return node + "\u0000" + Optional.ofNullable(type).orElse("") + "\u0000" + bucketStart(gatewayReceivedAt);
+	}
+
+	private Instant bucketStart(Instant instant) {
+		long epochSecond = instant.getEpochSecond();
+		return Instant.ofEpochSecond(epochSecond - Math.floorMod(epochSecond, SAMPLE_INTERVAL_SECONDS));
 	}
 
 	private String fingerprint(String sourcePath) {

@@ -40,25 +40,35 @@ class FirebaseHistoryStoreTests {
 	}
 
 	@Test
-	void doesNotDuplicateSameSourceOrEquivalentReading() {
-		FirebaseHistorySourceEntry first = entry("/tlali/historial/sensor/2026-09-28/tlali-npk-01/42");
-		FirebaseHistorySourceEntry sameReadingOtherPath = entry("/tlali/historial/tlali-npk-01/2026-09-28/12-30");
+	void keepsOneReadingPerThirtyMinuteBucket() {
+		FirebaseHistorySourceEntry first = entry(
+				"/tlali/historial/sensor/2026-09-28/tlali-npk-01/42",
+				Instant.parse("2026-09-28T18:30:00Z"), 42L);
+		FirebaseHistorySourceEntry sameBucket = entry(
+				"/tlali/historial/sensor/2026-09-28/tlali-npk-01/43",
+				Instant.parse("2026-09-28T18:59:59Z"), 43L);
+		FirebaseHistorySourceEntry nextBucket = entry(
+				"/tlali/historial/sensor/2026-09-28/tlali-npk-01/44",
+				Instant.parse("2026-09-28T19:00:00Z"), 44L);
 
 		store.store(List.of(first));
-		FirebaseHistoryStoreResult result = store.store(List.of(first, sameReadingOtherPath));
+		FirebaseHistoryStoreResult result = store.store(List.of(first, sameBucket, nextBucket));
 
-		assertThat(result.inserted()).isZero();
+		assertThat(result.inserted()).isEqualTo(1);
 		assertThat(result.duplicates()).isEqualTo(2);
 		assertThat(result.allVerified()).isTrue();
-		assertThat(repository.count()).isEqualTo(1);
+		assertThat(repository.count()).isEqualTo(2);
 	}
 
 	private FirebaseHistorySourceEntry entry(String sourcePath) {
-		Instant receivedAt = Instant.parse("2026-09-28T18:30:00Z");
+		return entry(sourcePath, Instant.parse("2026-09-28T18:30:00Z"), 42L);
+	}
+
+	private FirebaseHistorySourceEntry entry(String sourcePath, Instant receivedAt, long sequence) {
 		FirebaseNodeSnapshot snapshot = new FirebaseNodeSnapshot(
 				"tlali-npk-01",
 				"sensor",
-				42L,
+				sequence,
 				Map.of("ph", 5.8, "airTemperatureC", 24.2),
 				Map.of("recibidoUtc", receivedAt.toString()),
 				Map.of("rssi", -70),
