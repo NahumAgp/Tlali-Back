@@ -13,6 +13,7 @@ public record CropAgentRequest(
 		String firstReadingAt,
 		String lastReadingAt,
 		Boolean firebaseHistory,
+		String responseLanguage,
 		List<CropMetricContext> metrics
 ) {
 }

@@ -2,13 +2,17 @@ package com.tlali.api.ai;
 
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
@@ -25,6 +29,11 @@ public class CropAgentController {
 	@PostMapping("/crop-agent")
 	public CropAgentResponse ask(@Valid @RequestBody CropAgentRequest request) {
 		return service.ask(request);
+	}
+
+	@PostMapping(value = "/transcribe", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	public AudioTranscriptionResponse transcribe(@RequestPart("audio") MultipartFile audio) {
+		return service.transcribe(audio);
 	}
 
 	@ExceptionHandler(OpenAiNotConfiguredException.class)
@@ -46,6 +55,15 @@ public class CropAgentController {
 		return Map.of(
 				"message", message,
 				"detail", "OpenAI HTTP " + exception.getStatusCode().value()
+		);
+	}
+
+	@ExceptionHandler(ResourceAccessException.class)
+	@ResponseStatus(HttpStatus.BAD_GATEWAY)
+	public Map<String, String> openAiNetworkFailed(ResourceAccessException exception) {
+		return Map.of(
+				"message", "OpenAI tardó demasiado o no respondió. Usé el análisis local del cultivo.",
+				"detail", exception.getMessage()
 		);
 	}
 }

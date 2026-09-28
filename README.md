@@ -58,16 +58,16 @@ La API usa Spring Security con JWT.
 Usuario inicial:
 
 ```text
-Correo: superadmin@tlali.local
-Password: SuperAdmin123!
+Correo: nahum.aguilar.per@gmail.com
+Password: Admin123!
 ```
 
 Puedes cambiarlo con variables de entorno:
 
 ```powershell
-TLALI_SUPERADMIN_EMAIL=admin@example.com
+TLALI_SUPERADMIN_EMAIL=nahum.aguilar.per@gmail.com
 TLALI_SUPERADMIN_PASSWORD=change-me
-TLALI_SUPERADMIN_NAME=Super Admin
+TLALI_SUPERADMIN_NAME=Nahum Aguilar
 TLALI_JWT_SECRET=change-this-secret-in-production-at-least-32-chars
 TLALI_DEVICE_API_KEY=tlali-local-device-key
 ```
@@ -80,8 +80,8 @@ POST /api/v1/auth/login
 
 ```json
 {
-  "email": "superadmin@tlali.local",
-  "password": "SuperAdmin123!"
+  "email": "nahum.aguilar.per@gmail.com",
+  "password": "Admin123!"
 }
 ```
 

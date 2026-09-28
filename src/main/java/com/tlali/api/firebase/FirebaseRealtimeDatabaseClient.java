@@ -26,6 +26,9 @@ public class FirebaseRealtimeDatabaseClient {
 	private static final ParameterizedTypeReference<Map<String, Map<String, FirebaseNodeSnapshot>>> HISTORY_MAP_TYPE =
 			new ParameterizedTypeReference<>() {
 			};
+	private static final ParameterizedTypeReference<Map<String, Object>> CONFIGURATION_TYPE =
+			new ParameterizedTypeReference<>() {
+			};
 	private static final ZoneId REPORT_ZONE = ZoneId.of("America/Mexico_City");
 
 	private final RestClient restClient;
@@ -57,6 +60,25 @@ public class FirebaseRealtimeDatabaseClient {
 				Instant.now(),
 				nodes == null ? Map.of() : new LinkedHashMap<>(nodes)
 		);
+	}
+
+	public Map<String, Object> fetchConfiguration() {
+		Map<String, Object> configuration = restClient.get()
+				.uri("/tlali/configuracion.json")
+				.retrieve()
+				.body(CONFIGURATION_TYPE);
+		return configuration == null ? Map.of() : new LinkedHashMap<>(configuration);
+	}
+
+	public Map<String, Object> saveConfiguration(Map<String, Object> configuration) {
+		Map<String, Object> payload = new LinkedHashMap<>(configuration == null ? Map.of() : configuration);
+		payload.put("updatedAt", Instant.now().toString());
+		restClient.put()
+				.uri("/tlali/configuracion.json")
+				.body(payload)
+				.retrieve()
+				.toBodilessEntity();
+		return payload;
 	}
 
 	public List<FirebaseHistoryNodeResponse> fetchHistory(String type, LocalDate startDate, LocalDate endDate) {

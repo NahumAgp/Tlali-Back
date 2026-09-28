@@ -1,12 +1,17 @@
 package com.tlali.api.ai;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -16,6 +21,8 @@ import java.util.Map;
 
 @Service
 public class OpenAiCropAgentService {
+
+	private static final String WHISPER_MODEL = "whisper-1";
 
 	private final RestClient restClient;
 	private final String apiKey;
@@ -31,11 +38,10 @@ public class OpenAiCropAgentService {
 				.connectTimeout(Duration.ofSeconds(10))
 				.build();
 		JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(httpClient);
-		requestFactory.setReadTimeout(Duration.ofSeconds(45));
+		requestFactory.setReadTimeout(Duration.ofSeconds(25));
 		this.restClient = RestClient.builder()
 				.baseUrl("https://api.openai.com/v1")
 				.requestFactory(requestFactory)
-				.defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
 				.build();
 	}
 
@@ -46,23 +52,66 @@ public class OpenAiCropAgentService {
 
 		Map<String, Object> payload = new LinkedHashMap<>();
 		payload.put("model", model);
+		payload.put("max_output_tokens", 500);
+		payload.put("reasoning", Map.of("effort", "minimal"));
 		payload.put("instructions", """
 				Eres el agente agricola de Tlali Tlapixqui para un cultivo de jitomate en invernadero.
-				Responde en espanol claro, breve y accionable.
+				Se objetivo, directo y operativo. No saludes ni rellenes.
+				Entrega maximo 4 bullets y una accion prioritaria.
 				Usa solamente los datos entregados en el contexto. Si faltan datos, dilo sin inventar.
 				Compara contra los rangos configurados y prioriza riesgos de cultivo: humedad, temperatura, pH, CE y NPK.
 				No des diagnosticos definitivos de enfermedad; recomienda revisar o confirmar cuando aplique.
+				Si el usuario pide modo otomi, responde primero en otomi o hnahnu cuando puedas,
+				y agrega despues una seccion titulada "Subtitulo en espanol:" con el mismo contenido en espanol claro.
+				Si no puedes expresar un termino tecnico en otomi, conserva ese termino en espanol dentro de la respuesta.
+				Si no pide modo otomi, responde solamente en espanol claro, breve y accionable.
 				""");
 		payload.put("input", buildInput(request));
 
 		Map<?, ?> response = restClient.post()
 				.uri("/responses")
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+				.contentType(MediaType.APPLICATION_JSON)
 				.body(payload)
 				.retrieve()
 				.body(Map.class);
 
 		return new CropAgentResponse(extractText(response), model, true);
+	}
+
+	public AudioTranscriptionResponse transcribe(MultipartFile file) {
+		if (apiKey == null || apiKey.isBlank()) {
+			throw new OpenAiNotConfiguredException();
+		}
+		if (file == null || file.isEmpty()) {
+			return new AudioTranscriptionResponse("", null, WHISPER_MODEL);
+		}
+
+		MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+		body.add("model", WHISPER_MODEL);
+		body.add("response_format", "verbose_json");
+		body.add("prompt", "Audio sobre cultivo de jitomate. Puede estar en espanol u otomi/hnahnu.");
+		try {
+			body.add("file", new NamedByteArrayResource(file.getBytes(), fileName(file)));
+		} catch (IOException exception) {
+			throw new IllegalArgumentException("No pude leer el audio recibido.", exception);
+		}
+
+		Map<?, ?> response = restClient.post()
+				.uri("/audio/transcriptions")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+				.contentType(MediaType.MULTIPART_FORM_DATA)
+				.body(body)
+				.retrieve()
+				.body(Map.class);
+
+		Object text = response == null ? null : response.get("text");
+		Object language = response == null ? null : response.get("language");
+		return new AudioTranscriptionResponse(
+				text == null ? "" : text.toString(),
+				language == null ? null : language.toString(),
+				WHISPER_MODEL
+		);
 	}
 
 	private List<Map<String, Object>> buildInput(CropAgentRequest request) {
@@ -84,6 +133,9 @@ public class OpenAiCropAgentService {
 
 				Metricas resumidas:
 				%s
+
+				Idioma de respuesta solicitado:
+				%s
 				""".formatted(
 				request.question(),
 				valueOrDash(request.date()),
@@ -93,7 +145,8 @@ public class OpenAiCropAgentService {
 				request.readingsCount() == null ? 0 : request.readingsCount(),
 				valueOrDash(request.firstReadingAt()),
 				valueOrDash(request.lastReadingAt()),
-				formatMetrics(request.metrics())
+				formatMetrics(request.metrics()),
+				"otomi".equalsIgnoreCase(request.responseLanguage()) ? "otomi con subtitulo en espanol" : "espanol"
 		));
 		input.add(message);
 		return input;
@@ -166,5 +219,27 @@ public class OpenAiCropAgentService {
 	private String numberOrDash(Double value) {
 		if (value == null) return "-";
 		return String.format("%.2f", value);
+	}
+
+	private String fileName(MultipartFile file) {
+		String original = file.getOriginalFilename();
+		if (original == null || original.isBlank()) {
+			return "voice-message.webm";
+		}
+		return original;
+	}
+
+	private static class NamedByteArrayResource extends ByteArrayResource {
+		private final String fileName;
+
+		NamedByteArrayResource(byte[] byteArray, String fileName) {
+			super(byteArray);
+			this.fileName = fileName;
+		}
+
+		@Override
+		public String getFilename() {
+			return fileName;
+		}
 	}
 }

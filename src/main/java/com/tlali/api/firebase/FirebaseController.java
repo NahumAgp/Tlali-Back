@@ -2,6 +2,8 @@ package com.tlali.api.firebase;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -9,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/firebase")
@@ -25,6 +28,16 @@ public class FirebaseController {
 	@GetMapping("/actual")
 	public FirebaseActualResponse actual() {
 		return client.fetchActual();
+	}
+
+	@GetMapping("/configuration")
+	public Map<String, Object> configuration() {
+		return client.fetchConfiguration();
+	}
+
+	@PutMapping("/configuration")
+	public Map<String, Object> saveConfiguration(@RequestBody Map<String, Object> configuration) {
+		return client.saveConfiguration(configuration);
 	}
 
 	@GetMapping("/history")
