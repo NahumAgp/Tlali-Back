@@ -71,7 +71,9 @@ public class SecurityConfig {
 				"http://localhost:5173",
 				"http://127.0.0.1:5173",
 				"http://localhost:5174",
-				"http://127.0.0.1:5174"
+				"http://127.0.0.1:5174",
+				"https://monitoreo.tlali.tech",
+				"https://tlali.5.183.9.146.nip.io"
 		));
 		configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 		configuration.setAllowedHeaders(List.of("*"));
