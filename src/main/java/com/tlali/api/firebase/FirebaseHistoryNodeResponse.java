@@ -37,7 +37,18 @@ public record FirebaseHistoryNodeResponse(
 	}
 
 	public static FirebaseHistoryNodeResponse fromFirebase(String nodeName, String type, FirebaseNodeSnapshot snapshot, Instant syncedAt) {
-		Instant gatewayReceivedAt = parseGatewayReceivedAt(snapshot.gateway());
+		return fromFirebase(nodeName, type, snapshot, syncedAt, null);
+	}
+
+	public static FirebaseHistoryNodeResponse fromFirebase(
+			String nodeName,
+			String type,
+			FirebaseNodeSnapshot snapshot,
+			Instant syncedAt,
+			Instant fallbackReceivedAt
+	) {
+		Instant parsedReceivedAt = parseGatewayReceivedAt(snapshot.gateway());
+		Instant gatewayReceivedAt = parsedReceivedAt == null ? fallbackReceivedAt : parsedReceivedAt;
 		return new FirebaseHistoryNodeResponse(
 				null,
 				snapshot.node() == null || snapshot.node().isBlank() ? nodeName : snapshot.node(),

@@ -1,21 +1,30 @@
 package com.tlali.api.firebase;
 
+import com.tlali.api.firebasehistory.FirebaseHistoryBatch;
+import com.tlali.api.firebasehistory.FirebaseHistorySourceEntry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 @Service
 public class FirebaseRealtimeDatabaseClient {
@@ -30,6 +39,8 @@ public class FirebaseRealtimeDatabaseClient {
 			new ParameterizedTypeReference<>() {
 			};
 	private static final ZoneId REPORT_ZONE = ZoneId.of("America/Mexico_City");
+	private static final DateTimeFormatter LEGACY_TIME_FORMAT = DateTimeFormatter.ofPattern("HH-mm");
+	private static final JsonMapper JSON_MAPPER = new JsonMapper();
 
 	private final RestClient restClient;
 	private final String source;
@@ -109,6 +120,46 @@ public class FirebaseRealtimeDatabaseClient {
 				.toList();
 	}
 
+	public Set<String> fetchHistoryBranches() {
+		Map<String, Object> branches = fetchShallow("/tlali/historial.json");
+		return new TreeSet<>(branches.keySet());
+	}
+
+	public Set<LocalDate> fetchHistoryDates(String branch, LocalDate earliestDate) {
+		Map<String, Object> dates = fetchShallow("/tlali/historial/" + cleanPathSegment(branch) + ".json");
+		Set<LocalDate> result = new TreeSet<>();
+		for (String value : dates.keySet()) {
+			try {
+				LocalDate date = LocalDate.parse(value);
+				if (!date.isBefore(earliestDate)) {
+					result.add(date);
+				}
+			} catch (DateTimeParseException ignored) {
+				// Firebase may contain non-date metadata beside the history buckets.
+			}
+		}
+		return result;
+	}
+
+	public FirebaseHistoryBatch fetchHistoryBatch(String branch, LocalDate date) {
+		Map<String, Object> payload = restClient.get()
+				.uri("/tlali/historial/{branch}/{date}.json", branch, date)
+				.retrieve()
+				.body(CONFIGURATION_TYPE);
+		List<FirebaseHistorySourceEntry> entries = new ArrayList<>();
+		if (payload != null) {
+			flattenHistory(branch, date, payload, new ArrayList<>(), entries);
+		}
+		return new FirebaseHistoryBatch(branch, date, List.copyOf(entries));
+	}
+
+	public void deleteHistoryBatch(String branch, LocalDate date) {
+		restClient.delete()
+				.uri("/tlali/historial/{branch}/{date}.json", branch, date)
+				.retrieve()
+				.toBodilessEntity();
+	}
+
 	public void saveHistorySnapshot(FirebaseNodeSnapshot node) {
 		Instant gatewayReceivedAt = parseGatewayReceivedAt(node.gateway());
 		Instant effectiveReceivedAt = gatewayReceivedAt == null ? Instant.now() : gatewayReceivedAt;
@@ -130,6 +181,78 @@ public class FirebaseRealtimeDatabaseClient {
 				.body(payload)
 				.retrieve()
 				.toBodilessEntity();
+	}
+
+	private Map<String, Object> fetchShallow(String path) {
+		Map<String, Object> response = restClient.get()
+				.uri(uriBuilder -> uriBuilder.path(path).queryParam("shallow", "true").build())
+				.retrieve()
+				.body(CONFIGURATION_TYPE);
+		return response == null ? Map.of() : response;
+	}
+
+	@SuppressWarnings("unchecked")
+	private void flattenHistory(
+			String branch,
+			LocalDate date,
+			Map<String, Object> value,
+			List<String> path,
+			List<FirebaseHistorySourceEntry> entries
+	) {
+		if (isSnapshot(value)) {
+			FirebaseNodeSnapshot snapshot = JSON_MAPPER.convertValue(value, FirebaseNodeSnapshot.class);
+			String fallbackNode = inferNode(branch, path);
+			String fallbackType = inferType(branch, snapshot.type());
+			Instant fallbackReceivedAt = inferReceivedAt(date, path);
+			String sourcePath = "/tlali/historial/" + branch + "/" + date + "/" + String.join("/", path);
+			entries.add(new FirebaseHistorySourceEntry(
+					sourcePath, fallbackNode, fallbackType, fallbackReceivedAt, snapshot));
+			return;
+		}
+
+		for (Map.Entry<String, Object> child : value.entrySet()) {
+			if (!(child.getValue() instanceof Map<?, ?> childMap)) {
+				continue;
+			}
+			List<String> childPath = new ArrayList<>(path);
+			childPath.add(child.getKey());
+			flattenHistory(branch, date, (Map<String, Object>) childMap, childPath, entries);
+		}
+	}
+
+	private boolean isSnapshot(Map<String, Object> value) {
+		return value.containsKey("data")
+				&& (value.containsKey("node") || value.containsKey("gateway") || value.containsKey("seq"));
+	}
+
+	private String inferNode(String branch, List<String> path) {
+		for (String segment : path) {
+			if (segment.toLowerCase().startsWith("tlali-")) {
+				return segment;
+			}
+		}
+		return branch.toLowerCase().startsWith("tlali-") ? branch : "sin-nodo";
+	}
+
+	private String inferType(String branch, String snapshotType) {
+		if (snapshotType != null && !snapshotType.isBlank()) {
+			return snapshotType;
+		}
+		return branch.toLowerCase().contains("actuador") || branch.equalsIgnoreCase("actuator")
+				? "actuator"
+				: "sensor";
+	}
+
+	private Instant inferReceivedAt(LocalDate date, List<String> path) {
+		if (path.isEmpty()) {
+			return null;
+		}
+		try {
+			LocalTime time = LocalTime.parse(path.get(path.size() - 1), LEGACY_TIME_FORMAT);
+			return LocalDateTime.of(date, time).atZone(REPORT_ZONE).toInstant();
+		} catch (DateTimeParseException exception) {
+			return null;
+		}
 	}
 
 	private Instant parseGatewayReceivedAt(Map<String, Object> gateway) {

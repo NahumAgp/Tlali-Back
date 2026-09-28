@@ -25,6 +25,8 @@ El backend ya no requiere Supabase/PostgreSQL. El monitoreo se consulta desde Fi
 
 ```properties
 TLALI_FIREBASE_DATABASE_URL=https://tlali-5edc4-default-rtdb.firebaseio.com
+TLALI_FIREBASE_HISTORY_IMPORT_ENABLED=true
+TLALI_FIREBASE_HISTORY_IMPORT_DAYS=90
 ```
 
 El login inicial se crea en memoria desde la configuración. Las lecturas enviadas a `/api/v1/sensor-readings` se conservan solo mientras el backend esté encendido; la fuente operativa principal es Firebase.
@@ -39,7 +41,6 @@ La limpieza de Firebase queda apagada por defecto durante pruebas:
 
 ```properties
 TLALI_FIREBASE_CLEANUP_ENABLED=false
-TLALI_FIREBASE_CLEANUP_RETENTION_DAYS=2
 ```
 
 Cuando el sistema ya esté desplegado y se confirme que MySQL está recibiendo bien el historial, se podrá activar la limpieza para conservar en Firebase solo la ventana reciente.

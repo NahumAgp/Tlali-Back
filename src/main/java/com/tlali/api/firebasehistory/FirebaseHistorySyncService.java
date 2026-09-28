@@ -9,19 +9,26 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
 @Service
 public class FirebaseHistorySyncService {
 
 	private static final Logger log = LoggerFactory.getLogger(FirebaseHistorySyncService.class);
 
 	private final FirebaseRealtimeDatabaseClient firebaseClient;
+	private final FirebaseHistoryStore historyStore;
 	private final boolean enabled;
 
 	public FirebaseHistorySyncService(
 			FirebaseRealtimeDatabaseClient firebaseClient,
+			FirebaseHistoryStore historyStore,
 			@Value("${tlali.firebase.history-sync.enabled:true}") boolean enabled
 	) {
 		this.firebaseClient = firebaseClient;
+		this.historyStore = historyStore;
 		this.enabled = enabled;
 	}
 
@@ -33,21 +40,31 @@ public class FirebaseHistorySyncService {
 
 		try {
 			FirebaseActualResponse actual = firebaseClient.fetchActual();
-			int saved = 0;
+			List<FirebaseHistorySourceEntry> entries = new ArrayList<>();
 
 			for (FirebaseNodeSnapshot node : actual.nodes().values()) {
 				if (node.node() == null || node.node().isBlank()) {
 					continue;
 				}
-				firebaseClient.saveHistorySnapshot(node);
-				saved++;
+				String receivedAt = Objects.toString(
+						node.gateway() == null ? null : node.gateway().get("recibidoUtc"),
+						actual.fetchedAt().toString());
+				String identity = Objects.toString(node.seq(), "sin-seq") + "-" + receivedAt;
+				entries.add(new FirebaseHistorySourceEntry(
+						"/tlali/actual/" + node.node() + "/" + identity,
+						node.node(),
+						node.type(),
+						actual.fetchedAt(),
+						node
+				));
 			}
 
-			if (saved > 0) {
-				log.info("Firebase history sync wrote {} node snapshots to Realtime Database", saved);
+			FirebaseHistoryStoreResult result = historyStore.store(entries);
+			if (result.inserted() > 0) {
+				log.info("Realtime sync stored {} new node snapshots in MySQL", result.inserted());
 			}
 		} catch (RuntimeException exception) {
-			log.warn("Firebase history sync skipped: {}", exception.getMessage());
+			log.warn("Realtime-to-MySQL sync skipped: {}", exception.getMessage());
 		}
 	}
 }

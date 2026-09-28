@@ -154,7 +154,7 @@ public class OpenAiCropAgentService {
 				valueOrDash(request.date()),
 				valueOrDash(request.cropName()),
 				valueOrDash(request.stageName()),
-				Boolean.TRUE.equals(request.firebaseHistory()) ? "Firebase historico" : "lecturas disponibles en la sesion",
+				Boolean.TRUE.equals(request.firebaseHistory()) ? "historial persistente de MySQL" : "lecturas disponibles en tiempo real",
 				request.readingsCount() == null ? 0 : request.readingsCount(),
 				valueOrDash(request.firstReadingAt()),
 				valueOrDash(request.lastReadingAt()),

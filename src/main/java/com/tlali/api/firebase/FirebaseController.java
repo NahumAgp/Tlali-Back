@@ -1,5 +1,7 @@
 package com.tlali.api.firebase;
 
+import com.tlali.api.firebasehistory.FirebaseNodeHistoryRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,9 +22,11 @@ public class FirebaseController {
 	private static final ZoneId REPORT_ZONE = ZoneId.of("America/Mexico_City");
 
 	private final FirebaseRealtimeDatabaseClient client;
+	private final FirebaseNodeHistoryRepository historyRepository;
 
-	public FirebaseController(FirebaseRealtimeDatabaseClient client) {
+	public FirebaseController(FirebaseRealtimeDatabaseClient client, FirebaseNodeHistoryRepository historyRepository) {
 		this.client = client;
+		this.historyRepository = historyRepository;
 	}
 
 	@GetMapping("/actual")
@@ -45,7 +49,8 @@ public class FirebaseController {
 			@RequestParam(defaultValue = "sensor") String type,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+			@RequestParam(defaultValue = "10000") int limit
 	) {
 		LocalDate rangeStart = startDate != null ? startDate : date;
 		LocalDate rangeEnd = endDate != null ? endDate : date;
@@ -56,6 +61,12 @@ public class FirebaseController {
 		if (rangeEnd == null || rangeEnd.isBefore(rangeStart)) {
 			rangeEnd = rangeStart;
 		}
-		return client.fetchHistory(type, rangeStart, rangeEnd);
+		int safeLimit = Math.max(1, Math.min(limit, 100000));
+		return historyRepository.findByTypeAndGatewayReceivedAtBetweenOrderByGatewayReceivedAtDesc(
+				type,
+				rangeStart.atStartOfDay(REPORT_ZONE).toInstant(),
+				rangeEnd.plusDays(1).atStartOfDay(REPORT_ZONE).toInstant(),
+				PageRequest.of(0, safeLimit)
+		).stream().map(FirebaseHistoryNodeResponse::from).toList();
 	}
 }

@@ -16,7 +16,7 @@ import java.time.Instant;
 @Table(
 		name = "firebase_node_history",
 		uniqueConstraints = {
-				@UniqueConstraint(name = "uk_firebase_node_history_node_seq", columnNames = {"node", "sequence_number"})
+				@UniqueConstraint(name = "uk_firebase_node_history_source", columnNames = {"source_fingerprint"})
 		},
 		indexes = {
 				@Index(name = "idx_firebase_node_history_node", columnList = "node"),
@@ -29,6 +29,9 @@ public class FirebaseNodeHistory {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	@Column(name = "source_fingerprint", nullable = false, length = 64)
+	private String sourceFingerprint;
 
 	@Column(nullable = false, length = 120)
 	private String node;
@@ -65,6 +68,7 @@ public class FirebaseNodeHistory {
 	}
 
 	public FirebaseNodeHistory(
+			String sourceFingerprint,
 			String node,
 			String type,
 			Long sequenceNumber,
@@ -75,6 +79,7 @@ public class FirebaseNodeHistory {
 			Instant gatewayReceivedAt,
 			Instant syncedAt
 	) {
+		this.sourceFingerprint = sourceFingerprint;
 		this.node = node;
 		this.type = type;
 		this.sequenceNumber = sequenceNumber;
@@ -88,6 +93,10 @@ public class FirebaseNodeHistory {
 
 	public Long getId() {
 		return id;
+	}
+
+	public String getSourceFingerprint() {
+		return sourceFingerprint;
 	}
 
 	public String getNode() {
